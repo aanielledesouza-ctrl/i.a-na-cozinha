@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I.A na cozinha 👩‍🍳✨</title>
+<style>
+/* ========== 1. ESTILO (CSS) ========== */
+:root{--navy:#172A46;--bg:#BFDBFE;--card:#FFFFFF;--main:#2563EB;--main-d:#172A46;--soft:#BFDBFE;--txt:#172A46;--mut:rgba(23,42,70,.65);--ok:#2563EB;--bad:#172A46;--r:16px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+header{background:var(--navy);color:#fff;padding:14px 20px;text-align:center}
+header h1{margin:0;font-size:1.4rem}
+header p{margin:2px 0 0;font-size:.85rem;opacity:.9}
+main{max-width:1100px;margin:16px auto;padding:0 12px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+section{background:var(--card);border-radius:var(--r);box-shadow:0 2px 10px #0001;overflow:hidden}
+h2{margin:0;padding:12px 16px;font-size:1rem;background:var(--soft)}
+#chat{height:52vh;min-height:300px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:10px 13px;border-radius:14px;white-space:pre-wrap;line-height:1.4;font-size:.95rem}
+.msg.bot{background:var(--soft);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.user{background:var(--main);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.thumb{max-width:180px;border-radius:10px;display:block}
+.quick,#pantry,.picker{display:flex;flex-wrap:wrap;gap:6px}
+.quick{padding:8px 12px;border-top:1px solid #0001}
+.chip{border:1px solid var(--main);background:#fff;color:var(--main);border-radius:99px;padding:5px 11px;font-size:.82rem;cursor:pointer}
+.chip.on,.chip:hover{background:var(--main);color:#fff}
+#pantry{padding:8px 12px;font-size:.85rem;color:var(--mut);align-items:center}
+.form{display:flex;gap:6px;padding:10px 12px;border-top:1px solid #0001}
+input[type=text]{flex:1;min-width:0;padding:11px 14px;border:1px solid var(--soft);border-radius:99px;font-size:1rem}
+button.ico,button.send{border:0;border-radius:99px;background:var(--main);color:#fff;font-size:1rem;padding:0 16px;cursor:pointer}
+button.ico{background:var(--soft);color:var(--main);font-size:1.2rem}
+button.send:hover{background:var(--main-d)}
+#recipes{padding:12px;display:flex;flex-direction:column;gap:12px;min-height:200px}
+.empty{color:var(--mut);text-align:center;padding:30px 10px}
+.recipe{border:1px solid var(--soft);border-radius:var(--r);padding:14px}
+.recipe h3{margin:0 0 6px}
+.badges span{display:inline-block;background:var(--soft);border-radius:99px;padding:3px 10px;font-size:.78rem;margin:0 4px 6px 0}
+.recipe ul,.recipe ol{margin:4px 0 10px;padding-left:20px}
+.have{color:var(--ok)}.miss{color:var(--bad)}.basic{color:var(--mut)}
+.recipe h4{margin:10px 0 2px;font-size:.9rem}
+@media(max-width:800px){main{grid-template-columns:1fr}#chat{height:46vh}}
+</style>
+</head>
+<body>
+<header>
+  <h1>I.A na cozinha 👩‍🍳✨</h1>
+  <p>Diga (ou fotografe) o que tem em casa e descubra o que cozinhar</p>
+</header>
+
+<main>
+  <!-- Área de conversa -->
+  <section>
+    <h2>💬 Conversa</h2>
+    <div id="chat"></div>
+    <div id="pantry"></div>
+    <div class="quick" id="quick"></div>
+    <div class="form" id="form">
+      <button type="button" class="ico" id="photoBtn" title="Enviar foto">📷</button>
+      <input type="file" id="file" accept="image/*" hidden>
+      <input type="text" id="text" placeholder="Ex.: ovo, queijo, tomate..." autocomplete="off">
+      <button type="button" class="send" id="sendBtn">Enviar</button>
+    </div>
+  </section>
+
+  <!-- Área das receitas sugeridas -->
+  <section>
+    <h2>🍽️ Receitas sugeridas</h2>
+    <div id="recipes"><p class="empty">Suas receitas aparecerão aqui.</p></div>
+  </section>
+</main>
+
+<script>
+/* ========== 2. DADOS ==========
+   Para adicionar ingredientes ou receitas novas, basta incluir itens nas listas abaixo. */
+
+// Ingredientes conhecidos: chave -> nome e palavras que o identificam (sem acento)
+const ING = {
+  ovo:{n:'Ovo',s:['ovo','ovos']}, queijo:{n:'Queijo',s:['queijo','mussarela','mucarela']},
+  arroz:{n:'Arroz',s:['arroz']}, alho:{n:'Alho',s:['alho']},
+  macarrao:{n:'Macarrão',s:['macarrao','espaguete','massa','penne']},
+  tomate:{n:'Tomate',s:['tomate','tomates']}, cebola:{n:'Cebola',s:['cebola','cebolas']},
+  frango:{n:'Frango',s:['frango','peito de frango']}, batata:{n:'Batata',s:['batata','batatas']},
+  cenoura:{n:'Cenoura',s:['cenoura','cenouras']}, leite:{n:'Leite',s:['leite']},
+  leitecond:{n:'Leite condensado',s:['leite condensado']},
+  farinha:{n:'Farinha de trigo',s:['farinha','farinha de trigo']}, banana:{n:'Banana',s:['banana','bananas']},
+  aveia:{n:'Aveia',s:['aveia']}, acucar:{n:'Açúcar',s:['acucar']},
+  chocolate:{n:'Chocolate em pó',s:['chocolate','achocolatado','cacau']}, canela:{n:'Canela',s:['canela']},
+  pao:{n:'Pão',s:['pao','paes']}, presunto:{n:'Presunto',s:['presunto']},
+  manteiga:{n:'Manteiga',s:['manteiga','margarina']}, limao:{n:'Limão',s:['limao']},
+  // básicos: considerados presentes em toda casa
+  sal:{n:'Sal',s:['sal'],basic:1}, oleo:{n:'Óleo ou azeite',s:['oleo','azeite'],basic:1}, agua:{n:'Água',s:['agua'],basic:1}
+};
+
+// Receitas: ing = [chave, quantidade]
+const RECEITAS = [
+ {nome:'Omelete de queijo',tipo:'salgada',tempo:10,nivel:'Fácil',ing:[['ovo','3 unidades'],['queijo','50 g'],['sal','a gosto'],['oleo','1 colher de chá']],
+  passos:['Bata os ovos com uma pitada de sal.','Aqueça uma frigideira com um fio de óleo.','Despeje os ovos e deixe firmar por 1 minuto.','Coloque o queijo, dobre ao meio e deixe mais 1 minuto.']},
+ {nome:'Arroz com ovo frito',tipo:'salgada',tempo:15,nivel:'Fácil',ing:[['arroz','1 xícara (cozido)'],['ovo','2 unidades'],['alho','1 dente'],['sal','a gosto'],['oleo','1 colher de sopa']],
+  passos:['Refogue o alho picado no óleo.','Junte o arroz cozido e mexa até aquecer.','Em outra frigideira, frite os ovos.','Sirva o arroz com os ovos por cima.']},
+ {nome:'Macarrão ao alho e óleo',tipo:'salgada',tempo:20,nivel:'Fácil',ing:[['macarrao','200 g'],['alho','4 dentes'],['oleo','4 colheres de sopa'],['sal','a gosto'],['agua','1,5 L']],
+  passos:['Cozinhe o macarrão em água com sal até ficar al dente.','Doure o alho fatiado no óleo em fogo baixo.','Misture o macarrão escorrido ao alho e mexa por 1 minuto.']},
+ {nome:'Macarrão com molho de tomate',tipo:'salgada',tempo:30,nivel:'Fácil',ing:[['macarrao','200 g'],['tomate','3 unidades'],['cebola','1/2 unidade'],['alho','1 dente'],['sal','a gosto'],['oleo','1 colher de sopa']],
+  passos:['Cozinhe o macarrão e reserve.','Refogue cebola e alho no óleo.','Junte os tomates picados e o sal; cozinhe 10 minutos até virar molho.','Misture ao macarrão e sirva.']},
+ {nome:'Frango grelhado com batata',tipo:'salgada',tempo:40,nivel:'Médio',ing:[['frango','2 filés'],['batata','2 unidades'],['alho','2 dentes'],['limao','1/2 unidade'],['sal','a gosto'],['oleo','2 colheres de sopa']],
+  passos:['Tempere o frango com alho, limão e sal por 10 minutos.','Corte as batatas em cubos e cozinhe em água por 8 minutos.','Grelhe o frango 5 minutos de cada lado.','Doure as batatas no óleo e sirva junto.']},
+ {nome:'Frango refogado com legumes',tipo:'salgada',tempo:35,nivel:'Médio',ing:[['frango','300 g em cubos'],['cenoura','1 unidade'],['cebola','1/2 unidade'],['alho','2 dentes'],['sal','a gosto'],['oleo','1 colher de sopa']],
+  passos:['Doure o frango no óleo com sal.','Junte cebola e alho e refogue 2 minutos.','Adicione a cenoura em cubinhos e um pouco de água.','Tampe e cozinhe por 15 minutos.']},
+ {nome:'Panqueca simples',tipo:'salgada',tempo:20,nivel:'Fácil',ing:[['ovo','1 unidade'],['leite','1 xícara'],['farinha','1 xícara'],['sal','1 pitada'],['oleo','para untar']],
+  passos:['Bata ovo, leite, farinha e sal até ficar liso.','Unte a frigideira e despeje uma concha de massa.','Doure dos dois lados.','Recheie com queijo ou presunto, se tiver.']},
+ {nome:'Misto quente',tipo:'salgada',tempo:8,nivel:'Fácil',ing:[['pao','2 fatias'],['queijo','2 fatias'],['presunto','2 fatias'],['manteiga','1 colher de chá']],
+  passos:['Monte o pão com queijo e presunto.','Passe manteiga por fora.','Doure na frigideira dos dois lados até o queijo derreter.']},
+ {nome:'Batata assada crocante',tipo:'salgada',tempo:45,nivel:'Fácil',ing:[['batata','3 unidades'],['alho','2 dentes'],['oleo','2 colheres de sopa'],['sal','a gosto']],
+  passos:['Corte as batatas em gomos e misture com óleo, alho e sal.','Espalhe numa assadeira.','Asse a 200 °C por 35 minutos, virando na metade.']},
+ {nome:'Salada de tomate e cebola',tipo:'salgada',tempo:5,nivel:'Fácil',ing:[['tomate','2 unidades'],['cebola','1/2 unidade'],['limao','1/2 unidade'],['oleo','1 colher de sopa'],['sal','a gosto']],
+  passos:['Corte tomate e cebola em fatias finas.','Tempere com limão, óleo e sal.','Deixe descansar 5 minutos e sirva.']},
+ {nome:'Bolo de caneca',tipo:'doce',tempo:5,nivel:'Fácil',ing:[['ovo','1 unidade'],['farinha','4 colheres de sopa'],['acucar','3 colheres de sopa'],['leite','3 colheres de sopa'],['chocolate','2 colheres de sopa'],['oleo','2 colheres de sopa']],
+  passos:['Misture tudo numa caneca grande até ficar liso.','Leve ao micro-ondas por 2 a 3 minutos.','Espere esfriar um pouco antes de comer.']},
+ {nome:'Banana com aveia e canela',tipo:'doce',tempo:10,nivel:'Fácil',ing:[['banana','2 unidades'],['aveia','4 colheres de sopa'],['canela','a gosto']],
+  passos:['Amasse as bananas.','Misture a aveia e a canela.','Frite em colheradas na frigideira antiaderente, 2 minutos de cada lado.']},
+ {nome:'Brigadeiro de panela',tipo:'doce',tempo:15,nivel:'Fácil',ing:[['leitecond','1 lata'],['chocolate','3 colheres de sopa'],['manteiga','1 colher de sopa']],
+  passos:['Misture tudo numa panela.','Cozinhe em fogo baixo mexendo sempre até desgrudar do fundo.','Deixe esfriar e enrole ou coma de colher.']},
+ {nome:'Arroz-doce',tipo:'doce',tempo:40,nivel:'Médio',ing:[['arroz','1 xícara'],['leite','3 xícaras'],['acucar','1/2 xícara'],['canela','1 colher de chá'],['agua','1 xícara']],
+  passos:['Cozinhe o arroz na água até secar.','Junte leite e açúcar e mexa em fogo baixo por 20 minutos.','Finalize com canela.']},
+ {nome:'Vitamina de banana',tipo:'doce',tempo:3,nivel:'Fácil',ing:[['banana','2 unidades'],['leite','1 copo'],['acucar','1 colher de sopa']],
+  passos:['Bata tudo no liquidificador.','Sirva gelado.']}
+];
+
+// Substituições comuns
+const SUBST = {
+  leite:'água com 1 colher de manteiga, ou leite vegetal (aveia, soja, coco).',
+  ovo:'em receitas doces, 1/4 de xícara de banana ou maçã amassada por ovo.',
+  manteiga:'óleo (use um pouco menos) ou margarina.', acucar:'mel ou açúcar mascavo (um pouco menos).',
+  farinha:'aveia triturada no liquidificador.', alho:'cebola ou alho em pó.', limao:'vinagre (pouco) ou laranja.',
+  queijo:'requeijão, ricota ou nenhum — o prato fica mais simples.', leitecond:'leite em pó + água + açúcar, cozidos até engrossar.',
+  chocolate:'cacau em pó ou barra de chocolate derretida.', pao:'tapioca ou torradas.', cebola:'cebolinha ou alho-poró.'
+};
+
+/* ========== 3. "CÉREBRO" DA IA (local, sem API) ==========
+   Tudo está no objeto Motor. Se um dia quiser trocar por uma IA real (backend/API),
+   basta reimplementar Motor.responder() mantendo o mesmo formato de retorno. */
+
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const pantry = new Set();          // ingredientes que o usuário tem
+
+const Motor = {
+  // Descobre quais ingredientes aparecem em um texto
+  extrair(texto){
+    let t=' '+norm(texto)+' ', achados=[];
+    // "leite condensado" é tratado antes para não confundir com "leite"
+    for (const k of Object.keys(ING).sort((a,b)=>Math.max(...ING[b].s.map(x=>x.length))-Math.max(...ING[a].s.map(x=>x.length)))){
+      for (const w of ING[k].s){
+        const re=new RegExp('[^a-z]'+w+'[^a-z]');
+        if(re.test(t)){ achados.push(k); t=t.replace(new RegExp(w,'g'),' '); break; }
+      }
+    }
+    return achados;
+  },
+
+  // Pontua cada receita conforme o que o usuário tem
+  sugerir(filtro){
+    let lista = RECEITAS.map(r=>{
+      const ing = r.ing.map(([k,q])=>({k,q,tem: ING[k].basic || pantry.has(k), basic: !!ING[k].basic}));
+      const core = ing.filter(i=>!i.basic), tem = core.filter(i=>i.tem).length;
+      return {...r, ing, tem, total:core.length, razao: tem/core.length};
+    }).filter(r=>r.tem>0 && (!filtro || filtro(r)));
+    lista.sort((a,b)=>b.razao-a.razao || a.tempo-b.tempo);
+    return lista.slice(0,4);
+  },
+
+  // Recebe o texto do usuário e devolve {texto, receitas}
+  responder(texto){
+    const t = norm(texto);
+    const achados = this.extrair(texto);
+
+    if (/limpar|recomecar|zerar|comecar de novo/.test(t)){ pantry.clear(); return {texto:'Pronto, lista de ingredientes zerada! O que você tem em casa agora?'}; }
+
+    if (/substitu|trocar|no lugar d|sem /.test(t) && achados.length){
+      const dicas = achados.filter(k=>SUBST[k]).map(k=>`• ${ING[k].n}: ${SUBST[k]}`);
+      if (dicas.length) return {texto:'Você pode substituir assim:\n'+dicas.join('\n')};
+    }
+    if (/substitu|trocar/.test(t)) return {texto:'Qual ingrediente você quer substituir? Ex.: "posso substituir o leite?"'};
+
+    if (/^(oi|ola|e ai|bom dia|boa tarde|boa noite)\b/.test(t) && !achados.length)
+      return {texto:'Olá! 👩‍🍳 Me diga o que você tem em casa (ou envie uma foto) e eu sugiro receitas.'};
+
+    // Ingredientes novos entram na despensa (exceto quando é só pedido de substituição)
+    achados.filter(k=>!ING[k].basic).forEach(k=>pantry.add(k));
+
+    let filtro=null, rotulo='';
+    if (/doce|sobremesa/.test(t)){ filtro=r=>r.tipo==='doce'; rotulo=' doces'; }
+    else if (/rapid|pressa/.test(t)){ filtro=r=>r.tempo<=15; rotulo=' rápidas'; }
+    else if (/facil|simples/.test(t)){ filtro=r=>r.nivel==='Fácil'; rotulo=' mais fáceis'; }
+
+    if (!pantry.size) return {texto:'Primeiro me conte o que você tem em casa. Ex.: "ovo, queijo, tomate".'};
+
+    const receitas = this.sugerir(filtro);
+    if (!receitas.length) return {texto:`Não encontrei receitas${rotulo} com o que você tem. Tente adicionar mais ingredientes!`};
+
+    const completas = receitas.filter(r=>r.tem===r.total).length;
+    return {receitas, texto:`Encontrei ${receitas.length} receita(s)${rotulo} para você! ` +
+      (completas ? `${completas} você já pode fazer agora. ` : 'Faltam alguns itens em todas, veja ao lado. ') + '👉'};
+  }
+};
+
+/* ========== 4. INTERFACE ========== */
+const $ = s=>document.querySelector(s);
+const chat=$('#chat'), recipesBox=$('#recipes');
+
+function addMsg(who, conteudo){
+  const d=document.createElement('div'); d.className='msg '+who;
+  typeof conteudo==='string' ? d.textContent=conteudo : d.appendChild(conteudo);
+  chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
+}
+
+// Mostra a lista de ingredientes atuais (clique para remover)
+function drawPantry(){
+  const box=$('#pantry'); box.innerHTML='';
+  if(!pantry.size){ box.textContent='Nenhum ingrediente ainda.'; return; }
+  box.append('Você tem: ');
+  pantry.forEach(k=>{ const c=document.createElement('button'); c.type='button'; c.className='chip on'; c.textContent=ING[k].n+' ✕';
+    c.onclick=()=>{ pantry.delete(k); drawPantry(); }; box.appendChild(c); });
+}
+
+// Desenha os cartões de receita
+function drawRecipes(lista){
+  recipesBox.innerHTML='';
+  lista.forEach(r=>{
+    const el=document.createElement('article'); el.className='recipe';
+    const falta=r.ing.filter(i=>!i.tem);
+    el.innerHTML=`<h3>${r.nome}</h3>
+      <div class="badges"><span>⏱ ~${r.tempo} min</span><span>📊 ${r.nivel}</span><span>${r.tipo==='doce'?'🍰 Doce':'🍳 Salgada'}</span></div>
+      <h4>Ingredientes</h4><ul>${r.ing.map(i=>`<li class="${i.basic?'basic':i.tem?'have':'miss'}">${i.tem?'✅':'❌'} ${ING[i.k].n} — ${i.q}${i.basic?' (básico)':''}</li>`).join('')}</ul>
+      <p>${falta.length?`<b class="miss">Faltam:</b> ${falta.map(i=>ING[i.k].n).join(', ')}`:'<b class="have">Você tem tudo!</b>'}</p>
+      <h4>Modo de preparo</h4><ol>${r.passos.map(p=>`<li>${p}</li>`).join('')}</ol>`;
+    recipesBox.appendChild(el);
+  });
+  recipesBox.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// Envia uma mensagem do usuário e mostra a resposta
+function enviar(texto){
+  if(!texto.trim()) return;
+  addMsg('user',texto);
+  const digitando=addMsg('bot','...');
+  setTimeout(()=>{                         // pequeno atraso para parecer uma conversa
+    const r=Motor.responder(texto);
+    digitando.textContent=r.texto;
+    if(r.receitas) drawRecipes(r.receitas);
+    drawPantry(); chat.scrollTop=chat.scrollHeight;
+  },500);
+}
+
+// Formulário de texto
+// (sem <form>, para funcionar também em visualizadores que bloqueiam envio de formulário)
+function enviarDoCampo(){ const i=$('#text'); enviar(i.value); i.value=''; i.focus(); }
+$('#sendBtn').onclick=enviarDoCampo;
+$('#text').onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); enviarDoCampo(); } };
+
+// Atalhos rápidos
+[['🍰 Receita doce','Quero uma receita doce'],['⚡ Opção rápida','Me dê uma opção rápida'],['👍 Mais fácil','Tem uma receita mais fácil?'],
+ ['🔁 Substituir','Posso substituir um ingrediente?'],['🗑 Limpar','Limpar ingredientes']].forEach(([l,t])=>{
+  const b=document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=l; b.onclick=()=>enviar(t); $('#quick').appendChild(b);
+});
+
+// Foto: sem API não há reconhecimento automático, então o usuário confirma os
+// ingredientes que vê na foto. (Ponto de extensão: plugar um modelo de visão aqui.)
+$('#photoBtn').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const img=document.createElement('img'); img.src=URL.createObjectURL(f); img.className='thumb'; addMsg('user',img);
+  const box=document.createElement('div'); const sel=new Set();
+  box.append('Recebi sua foto! 📷 Marque os ingredientes que aparecem nela:');
+  const picker=document.createElement('div'); picker.className='picker'; picker.style.margin='8px 0';
+  Object.keys(ING).filter(k=>!ING[k].basic).forEach(k=>{
+    const c=document.createElement('button'); c.type='button'; c.className='chip'; c.textContent=ING[k].n;
+    c.onclick=()=>{ sel.has(k)?sel.delete(k):sel.add(k); c.classList.toggle('on'); }; picker.appendChild(c);
+  });
+  const ok=document.createElement('button'); ok.type='button'; ok.className='chip on'; ok.textContent='✔ Usar estes ingredientes';
+  ok.onclick=()=>{ if(sel.size) enviar([...sel].map(k=>ING[k].n).join(', ')); };
+  box.append(picker,ok); addMsg('bot',box); e.target.value='';
+};
+
+// Mensagem inicial
+addMsg('bot','Olá! Eu sou a I.A na cozinha 👩‍🍳✨\nDigite os ingredientes que você tem (ex.: "ovo, queijo, tomate") ou envie uma foto, e eu sugiro receitas!');
+drawPantry();
+</script>
+</body>
+</html>
